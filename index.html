@@ -9,7 +9,6 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f7f8;
-    /* 중앙 정렬 강화 */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -23,10 +22,9 @@ body {
     padding: 25px; 
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    /* 수정: 가로폭을 티스토리 본문에 맞춰 유동적으로 조절 */
     width: 95%; 
-    max-width: 900px; /* 최대 폭을 900px로 설정하여 너무 늘어나지 않게 함 */
-    margin: 0 auto; /* 중앙 정렬 추가 */
+    max-width: 900px; 
+    margin: 0 auto; 
 }
 
 h1 {
@@ -98,17 +96,10 @@ h2 {
     margin-bottom: 10px;
 }
 
-.result-box {
-    padding: 0;
-}
-
-.result-box p {
-
-/* 세후 이자 빨간색으로 강조 */
+/* 오류 유발하던 .result-box p 블록을 깔끔하게 정리했습니다. */
 #result-interest-after-tax {
     color: red;
     font-weight: bold;
-}
 }
     </style>
     </head>
@@ -139,4 +130,94 @@ h2 {
         
         <div class="input-group">
             <label for="taxRate">이자소득세율 (%):</label>
-            <input type="number# calculator
+            <input type="number" id="taxRate" value="15.4" step="0.01" min="0" max="100" required>
+        </div>
+        
+        <button onclick="calculateFinalValue()">총 만기 금액 계산하기</button>
+
+        <hr>
+
+        <h2>📊 계산 결과 (총 <span id="total-years">10</span>년 만기)</h2>
+        <div class="result-box">
+            <p id="result-total-principal">총 납입 원금: <span>0</span> 만원</p>
+            <p id="result-interest-before-tax">세전 이자: <span>0</span> 만원</p>
+            <p id="result-tax-amount" class="tax-info">세금(이자소득세): <span>0</span> 만원</p>
+            <p id="result-interest-after-tax">세후 이자: <span>0</span> 만원</p>
+            <p id="result-final-value" class="highlight-result">세후 총 만기 금액: <span class="highlight">0</span> 만원</p>
+        </div>
+    </div>
+
+    <script>
+function calculateFinalValue() {
+    // 1. 입력 값 가져오기
+    const PMT = parseFloat(document.getElementById('monthlyDeposit').value);  // 월 납입액 (만원)
+    // const rate = parseFloat(document.getElementById('rate').value);          // 연 이자율 (%) - 이 부분은 무시됩니다.
+    const n_pay = parseInt(document.getElementById('depositYears').value);  // 납입 기간 (년)
+    const n_hold = parseInt(document.getElementById('holdingYears').value); // 거치 기간 (년)
+    const taxRate = parseFloat(document.getElementById('taxRate').value);   // 세율 (%)
+    
+    // 2. 고정 값 및 유효성 검사
+    const totalYears = n_pay + n_hold;
+    
+    // ***** 수정된 부분: 연 이자율을 3.5% (0.035)로 강제 고정 *****
+    const r_annual = 0.035; 
+    
+    const t = taxRate / 100;         // 세율 (소수점)
+    const totalMonths_pay = n_pay * 12; // 총 납입 개월 수
+    
+    // 유효성 검사
+    if (isNaN(PMT) || isNaN(n_pay) || isNaN(n_hold) || isNaN(taxRate) || 
+        PMT < 0 || n_pay < 0 || n_hold < 0 || taxRate < 0) {
+        alert("월 납입액, 기간, 세율에 유효한 양수 값을 입력해 주세요.");
+        return;
+    }
+    
+    document.getElementById('total-years').textContent = totalYears;
+
+
+    // --- 3. 총 납입 원금 계산 ---
+    const totalPrincipal = PMT * totalMonths_pay;
+
+    
+    // --- 4. 세전 총 이자 계산 (단리 적용) ---
+    let totalInterestBeforeTax = 0;
+
+    // A. 납입 기간 동안 발생하는 단리 이자 (적금 단리 공식)
+    // 연 이율 r_annual (0.035)이 사용됩니다.
+    if (n_pay > 0) {
+        const simpleDepositInterest = PMT * totalMonths_pay * r_annual * ((totalMonths_pay + 1) / (2 * 12));
+        totalInterestBeforeTax += simpleDepositInterest;
+    }
+
+
+    // B. 거치 기간 동안 발생하는 단리 이자 (거치 기간 동안 총 원금에 대한 단리)
+    // 연 이율 r_annual (0.035)이 사용됩니다.
+    if (n_hold > 0) {
+        const holdingInterest = totalPrincipal * r_annual * n_hold;
+        totalInterestBeforeTax += holdingInterest;
+    }
+
+
+    // --- 5. 세금 및 최종 금액 계산 ---
+    
+    // 세금 (이자소득세)
+    const taxAmount = totalInterestBeforeTax * t;
+
+    // 세후 이자
+    const interestAfterTax = totalInterestBeforeTax - taxAmount;
+
+    // 세후 최종 만기 금액
+    const finalValue = totalPrincipal + interestAfterTax;
+
+
+    // --- 6. 결과를 HTML에 표시 (소수점 둘째 자리까지) ---
+    
+    document.getElementById('result-total-principal').querySelector('span').textContent = totalPrincipal.toFixed(2);
+    document.getElementById('result-interest-before-tax').querySelector('span').textContent = totalInterestBeforeTax.toFixed(2);
+    document.getElementById('result-tax-amount').querySelector('span').textContent = taxAmount.toFixed(2);
+    document.getElementById('result-interest-after-tax').querySelector('span').textContent = interestAfterTax.toFixed(2);
+    document.getElementById('result-final-value').querySelector('span').textContent = finalValue.toFixed(2);
+}
+    </script>
+    </body>
+</html>
